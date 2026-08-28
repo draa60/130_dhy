@@ -1,50 +1,57 @@
 import requests
 from bs4 import BeautifulSoup
 import os
-import hashlib
 
 # BURALARI KENDİNİZE GÖRE DÜZENLEYİN
 URL = "https://yhgm.saglik.gov.tr/TR-119311/130donem-devlet-hizmeti-yukumlulugu-kurasi.html"
 NTFY_TOPIC = "aa_1453_1_26"
+ANAHTAR_KELIME = "Münhal Kadrolar"
 
-def get_page_hash():
-    # Siteye Linux üzerinden standart bir tarayıcı gibi bağlanıyoruz
-    headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'}
+def check_keyword():
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     response = requests.get(URL, headers=headers)
     response.raise_for_status()
     
+    # Sitenin sadece metin kısımlarını alıyoruz
     soup = BeautifulSoup(response.text, 'html.parser')
-    for script in soup(["script", "style"]):
-        script.extract()
     text = soup.get_text(separator=' ', strip=True)
     
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+    # Büyük/küçük harf duyarlılığını ortadan kaldırarak arama yapıyoruz
+    return ANAHTAR_KELIME.lower() in text.lower()
 
 try:
-    current_hash = get_page_hash()
-    previous_hash = ""
+    is_found = check_keyword()
     
+    # Sürekli aynı bildirimi atmamak için önceki durumu kontrol ediyoruz
+    already_notified = False
     if os.path.exists("state.txt"):
         with open("state.txt", "r") as f:
-            previous_hash = f.read().strip()
+            if f.read().strip() == "bulundu":
+                already_notified = True
 
-    if previous_hash and current_hash != previous_hash:
+    if is_found and not already_notified:
+        # Kelime eklendi ve henüz bildirim atılmadı!
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}", 
-            data=f"Sitede değişiklik tespit edildi!\nBağlantı: {URL}".encode('utf-8')
+            data=f"DİKKAT: '{ANAHTAR_KELIME}' sitede yayınlandı!\nBağlantı: {URL}".encode('utf-8')
         )
-        print("Değişiklik algılandı ve ntfy üzerinden bildirim gönderildi.")
-    elif not previous_hash:
-        print("İlk çalışma: state.txt oluşturuldu. Sonraki çalıştırmada karşılaştırma yapılacak.")
+        print("Kelime bulundu ve bildirim gönderildi.")
+        
+        # Durumu kaydediyoruz ki 10 dakika sonra tekrar bildirim atmasın
+        with open("state.txt", "w") as f:
+            f.write("bulundu")
+            
+    elif not is_found and already_notified:
+        # Eğer kelime siteden tekrar kaldırılırsa durumu sıfırlıyoruz
+        with open("state.txt", "w") as f:
+            f.write("bulunmadi")
+        print("Kelime siteden kaldırılmış, durum sıfırlandı.")
+        
     else:
-        requests.post(
-            f"https://ntfy.sh/{NTFY_TOPIC}", 
-            data=f"Sitede herhangi bir değişiklik yok".encode('utf-8')
-        )
-        print("Sitede herhangi bir değişiklik yok.")
-
-    with open("state.txt", "w") as f:
-        f.write(current_hash)
+        if is_found:
+            print("Kelime sitede var ama bildirim zaten gönderilmiş.")
+        else:
+            print("Kelime henüz sitede yok.")
 
 except Exception as e:
     print("Bir hata oluştu:", e)
