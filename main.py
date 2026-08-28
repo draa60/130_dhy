@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import os
 
 # BURALARI KENDİNİZE GÖRE DÜZENLEYİN
-URL = "https://yhgm.saglik.gov.tr/TR-119311/130donem-devlet-hizmeti-yukumlulugu-kurasi.html"
+URL = "https://yhgm.saglik.gov.tr/TR-119308/130donem-devlet-hizmeti-yukumlulugu-kurasi.html"
 NTFY_TOPIC = "aa_1453_1_26"
 ANAHTAR_KELIME = "Münhal Kadrolar"
 
