@@ -1,0 +1,35 @@
+name: Website Monitor
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Her saat başı otomatik çalışır
+  workflow_dispatch:     # İsteğe bağlı olarak manuel çalıştırma butonu ekler
+
+permissions:
+  contents: write        # Kodun yeni durumu (state.txt) repoya kaydetmesi için yetki
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu Klonla
+        uses: actions/checkout@v4
+      
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Kütüphaneleri Yükle
+        run: pip install requests beautifulsoup4
+        
+      - name: Kontrol Kodunu Çalıştır
+        run: python main.py
+        
+      - name: Değişiklikleri GitHub'a Kaydet
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add state.txt
+          # Eğer state.txt dosyasında bir değişiklik varsa kaydeder, yoksa hata vermeden geçer
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Site durumu güncellendi" && git push)
