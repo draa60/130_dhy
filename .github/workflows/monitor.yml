@@ -1,35 +1,40 @@
 name: Website Monitor
 
 on:
+  workflow_dispatch:     # İlk çalıştırmayı manuel başlatmak için
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:     # İsteğe bağlı olarak manuel çalıştırma butonu ekler
+    # Sadece zincir bir şekilde kopar/kaybolursa diye 6 saatte bir güvenlik ağı.
+    # Ana mekanizma bu değil, script kendini zaten yeniden tetikliyor.
+    - cron: '0 */6 * * *'
 
 permissions:
-  contents: write        # Kodun yeni durumu (state.txt) repoya kaydetmesi için yetki
+  contents: write   # state.txt'i commit'leyebilmek için
+  actions: write    # workflow'u kendi kendine yeniden tetikleyebilmek için
+
+concurrency:
+  group: website-monitor
+  cancel-in-progress: false   # aynı anda iki kopya çalışmasın, ama var olanı da iptal etme
 
 jobs:
   check-website:
     runs-on: ubuntu-latest
+    timeout-minutes: 355   # GitHub'ın 360 dakikalık sert limitinden önce script kendini durdurup yeniden tetikler
+
     steps:
       - name: Repoyu Klonla
         uses: actions/checkout@v4
-      
+
       - name: Python Kur
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
       - name: Kütüphaneleri Yükle
         run: pip install requests beautifulsoup4
-        
-      - name: Kontrol Kodunu Çalıştır
+
+      - name: Kontrol Döngüsünü Çalıştır
         run: python main.py
-        
-      - name: Değişiklikleri GitHub'a Kaydet
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add state.txt
-          # Eğer state.txt dosyasında bir değişiklik varsa kaydeder, yoksa hata vermeden geçer
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Site durumu güncellendi" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
