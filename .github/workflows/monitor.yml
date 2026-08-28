@@ -2,7 +2,7 @@ name: Website Monitor
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Her saat başı otomatik çalışır
+    - cron: '*/5 * * * *'
   workflow_dispatch:     # İsteğe bağlı olarak manuel çalıştırma butonu ekler
 
 permissions:
